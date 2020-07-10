@@ -40,17 +40,16 @@
   "Internal - do not use.
 PATH: list of ints/strings, to access nested json
 JSON: list/hash-table"
+  (debug)
   (if path
-      (spotify-parse-json
-       (cdr path)
-       (cdr (pcase (type-of json)
-          ('hash-table
-           (gethash (car path) json))
-          ('list
-           (nth (car path) json))
-          ('cons
-           json)
-          (_ json))))
+      (pcase (type-of json)
+        ('hash-table
+         (spotify-parse-json (cdr path) (gethash (car path) json)))
+        ('list
+         (spotify-parse-json (cdr path) (nth (car path) json)))
+        ('cons
+         (spotify-parse-json (cdr path) json))
+        (_ json))
     json
     ))
 
