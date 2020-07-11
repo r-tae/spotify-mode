@@ -129,11 +129,12 @@ JSON: list/hash-table"
   "Internal use only."
   (let* ((json (spotify-make-api-call 'current))
          (inhibit-read-only t)
-         (image (spotify-download-temp-image
-                 (spotify-parse-json
-                  '("item" "album" "images" 1 "url") json))))
+         (image (spotify-get-album-art json))
+         (album_name (spotify-get-album-name json)))
     (switch-to-buffer "spotify")
-    (insert-image (create-image image nil nil :scale 0.4))))
+    (insert-image image)
+    (insert album_name)
+    (fit-window-to-buffer)))
 
 (defun spotify-current ()
   "Go back a track."
