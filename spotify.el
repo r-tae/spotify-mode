@@ -197,25 +197,19 @@ ACTION: either POST or GET"
       "&scope=user-modify-playback-state%20user-read-playback-state%20user-read-currently-playing"
       "&redirect_uri=https://svelte-gold.vercel.app"))
     (setq spotify-access-token
-          (read-from-minibuffer "Please paste your auth code here: "))
-    ))
+          (read-from-minibuffer "Please paste your auth code here: "))))
 
-;;(defvar spotify-mode-map
-;;  (let ((map (make-sparse-keymap)))
-;;    (define-key map (kbd "k") 'spotify-play)
-;;    (define-key map (kbd "l")  'spotify-next)
-;;    (define-key map (kbd "j") 'spotify-previous)
-;;    map)
-;;  "Keymap for Spotify mode.")
+(add-hook 'spotify-mode-hook
+          (lambda ()
+            (evil-local-set-key 'normal (kbd "k") 'spotify-pause-play)
+            (evil-local-set-key 'normal (kbd "l") 'spotify-next)
+            (evil-local-set-key 'normal (kbd "j") 'spotify-previous)))
 
 (defvar spotify-mode-map
-  (let ((map (copy-keymap special-mode-map)))
-    (define-key map (kbd "k") #'spotify-pause-play)
-    (define-key map (kbd "l") #'spotify-next)
-    ;; Set parent map for foo-mode-map:
-    (set-keymap-parent map special-mode-map)
+  (let ((map (make-keymap)))
+    (suppress-keymap map t)
     map)
-  "Keymap for foo-mode.")
+  "Keymap for spotify-mode.")
 
 (define-derived-mode spotify-mode special-mode "spotify"
   "Major mode for controlling Spotify.
