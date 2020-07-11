@@ -42,15 +42,14 @@
   "Internal - do not use.
 PATH: list of ints/strings, to access nested json
 JSON: list/hash-table"
-  (debug)
   (if path
       (pcase (type-of json)
         ('hash-table
          (spotify-parse-json (cdr path) (gethash (car path) json)))
-        ('list
-         (spotify-parse-json (cdr path) (nth (car path) json)))
-        ('cons
-         (spotify-parse-json (cdr path) json))
+        ('vector
+         (spotify-parse-json (cdr path) (aref json (car path))))
+        ;;('cons
+        ;; (spotify-parse-json path (car json)))
         (_ json))
     json
     ))
@@ -100,32 +99,41 @@ JSON: list/hash-table"
   (let ((inhibit-read-only t))
     (switch-to-buffer "spotify")
     (erase-buffer)
-    (pcase (assoc 'playing spotify-state)
+    (pcase (cdr (assoc 'playing spotify-state))
       ('paused
        (insert "Stopped"))
       ('playing
-       (insert "Playing"))
-      ))
-  )
+       (insert "Playing")))))
 
-(defun spotify-api-call ()
-  "Internal - use spotify-play-pause instead."
-  (let* ((url-request-method "POST")
-         (auth-code (concat "Bearer " spotify-access-token))
-         (url-request-extra-headers
-          (list
-           (cons "Authorization" auth-code)
-           (cons "Content-Length" "0")
-           )))
-    (let ((inhibit-read-only t))
-      (replace-buffer-contents (url-retrieve-synchronously spotify-api-url))
-      )
-    ))
+(defun spotify-download-temp-image (path)
+  "Download PATH as a temp file and return it."
+  (let ((img (expand-file-name
+              (concat (md5 path) "." (or (file-name-extension path) "jpeg"))
+              temporary-file-directory)))
+    (if (file-exists-p img)
+        img
+      (url-copy-file path img)
+      img)))
+
+(defun spotify-get-album-art (json)
+  "Image ready to be inserted into a buffer from JSON returned from spotify."
+  (let* ((url (spotify-parse-json '("item" "album" "images" 1 "url") json))
+         (image (spotify-download-temp-image url)))
+    (create-image image nil nil :scale 0.4)))
+
+(defun spotify-get-album-name (json)
+  "Album name from Spotify JSON payload."
+  (spotify-parse-json '("item" "album" "name") json))
 
 (defun spotify-load-state ()
   "Internal use only."
-  (let ((json (spotify-make-api-call 'current)))
-    (spotify-parse-json '("item" "album" "images" 0) json)))
+  (let* ((json (spotify-make-api-call 'current))
+         (inhibit-read-only t)
+         (image (spotify-download-temp-image
+                 (spotify-parse-json
+                  '("item" "album" "images" 1 "url") json))))
+    (switch-to-buffer "spotify")
+    (insert-image (create-image image nil nil :scale 0.4))))
 
 (defun spotify-current ()
   "Go back a track."
@@ -142,8 +150,7 @@ JSON: list/hash-table"
     ('playing
      (spotify-make-api-call 'pause)
      (setf (cdr (assoc 'playing spotify-state)) 'paused)))
-  (spotify-print-buffer)
-  )
+  (spotify-print-buffer))
 
 (defun spotify-next ()
   "Go back a track."
@@ -153,8 +160,7 @@ JSON: list/hash-table"
 (defun spotify-previous ()
   "Go back a track."
   (interactive)
-  (spotify-make-api-call 'previous)
-  )
+  (spotify-make-api-call 'previous))
 
 (defun spotify-make-api-call (action)
   "Internal - use one of the call specific methods.
@@ -171,11 +177,13 @@ ACTION: either POST or GET"
            )))
     (if access-token-set
         (progn
-         (set-buffer (url-retrieve-synchronously (cdr (assoc 'url endpoint))))
-         (let ((payload (delete-and-extract-region (point) (point-max))))
-           (princ payload)
-           )))
-    ))
+          (set-buffer (url-retrieve-synchronously (cdr (assoc 'url endpoint))))
+          (let ((payload (delete-and-extract-region
+                          (point)
+                          (point-max))
+                         ))
+            (json-parse-string payload)
+            )))))
 
 (defun spotify-api-init ()
   "Make a call to the Spotify APIs."
