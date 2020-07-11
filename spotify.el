@@ -18,6 +18,8 @@
 ;;
 ;;
 ;;; Code:
+(require 'url)
+(require 'evil)
 
 (defun spotify ()
   "Control spotify."
